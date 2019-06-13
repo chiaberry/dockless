@@ -1,6 +1,7 @@
 node_modules
 notes.md
 dist
+package-lock.json
 __pycache__
 .env
 .DS_Store

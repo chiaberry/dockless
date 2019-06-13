@@ -245,6 +245,7 @@ const ATD_DocklessMap = (function() {
     handleWelcomeModalToggle();
     handleActiveCellHighlight();
     handleModalClose();
+    handleShowDistricts();
   };
 
   const popWelcomeModal = () => {
@@ -334,6 +335,37 @@ const ATD_DocklessMap = (function() {
       updateUrlAndDataForDateRange(previousEndTime, docklessMap.endTime);
       closeSlidingPane();
       $(this).datepicker("hide");
+    });
+  }
+
+  function handleShowDistricts() {
+    $("#js-mode-add-districts").on("change", function(e) {
+      console.log(e.target.checked)
+      console.log(docklessMap.map.getStyle().layers)
+      if (e.target.checked) {
+        // if the layer already exists, mark visible
+        if (docklessMap.map.getLayer("districts")) {
+          showLayer("districts", true);
+        } else {
+          docklessMap.map.addSource("districts", {
+            type: 'vector', 
+            url: 'mapbox://chiaberry.b3l357q2'
+          });
+
+          docklessMap.map.addLayer({
+            id: "districts",
+            type: "fill",
+            source: "districts",
+            'source-layer': 'Council_Districts_Fill-8hz4zd',
+            paint: {
+              "fill-outline-color": 'black',
+              "fill-color": 'rgba(44, 98, 159, 0.1)'
+            }
+          });
+        }
+      } else {
+        showLayer("districts", false);
+      }
     });
   }
 

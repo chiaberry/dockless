@@ -74,7 +74,9 @@
             </button>
           </div>
           <div id="map" class="h-100"></div>
-          <div id="js-trip-stats-container--mobile" class="trip-stats-container--mobile"></div>
+          <div class="trip-stats-container col-sm-9">
+            <div id="js-trip-stats-container" class="row justify-content-center px-3"></div>
+          </div>
         </div>
         <div class="col-xs-10 col-sm-3 map-overlay-pane map-overlay-pane--collapsed js-sliding-pane pt-2">
           <div class="row pb-3">
@@ -95,19 +97,29 @@
               </div>
             </div>
           </div>
-            <form id="js-data-select-form" action="#">
-              <div class="form-group row">
-                <label for="flow-select" class="col-sm-3 col-form-label">Flow</label>
-                <div class="col-sm-9">
-                  <select class="form-control js-flow-select" id="flow-select">
-                    <option value="destination" selected="selected">Trip Destinations</option>
-                    <option value="origin">Trip Origins</option>
-                  </select>
+            <form id="js-daterange-select-form" action="#">
+              <div class="form-row">
+                <div class="form-group col-6 mb-0">
+                  <label for="js-start-date-select" class="col-form-label">Start Date</label>
+                  <input id="js-start-date-select" class="form-control" data-toggle="datepicker" autocomplete="off">
+                </div>
+                <div class="form-group col-6 mb-0">
+                  <label for="js-end-date-select" class="col-form-label">End Date</label>
+                  <input id="js-end-date-select" class="form-control" data-toggle="datepicker" autocomplete="off">
                 </div>
               </div>
-              <div class="form-group row">
-                <label for="mode-select" class="col-sm-3 col-form-label">Mode</label>
-                <div class="col-sm-9">
+            </form>
+            <form id="js-mode-flow-select-form" action="#">
+              <div class="form-row">
+                <div class="form-group col-6 mb-0">
+                  <label for="flow-select" class="col-form-label">Trip Flow</label>
+                  <select class="form-control js-flow-select" id="flow-select">
+                    <option value="destination" selected="selected">Destinations</option>
+                    <option value="origin">Origins</option>
+                  </select>
+                </div>
+                <div class="form-group col-6 mb-0">
+                  <label for="mode-select" class="col-form-label">Mode</label>
                   <select class="form-control js-mode-select" id="mode-select">
                     <option value="all">All</option>
                     <option value="scooter">Scooter</option>
@@ -126,11 +138,6 @@
               </span>
             </button>
           </div>
-          <p class="disclaimer text-justify position-absolute mr-3">
-            <i>
-              This map has been produced by the City of Austin for the sole purpose of geographic reference. No warranty is made by the City of Austin regarding specific accuracy or completeness.
-            </i>
-          </p>
         </div>
       </div>
 
@@ -164,14 +171,19 @@
               </button>
             </div>
             <div class="modal-body text-justify">
-              <p>The purpose of this tool is share data and stories about dockless mobility transit modes (scooters, e-bikes, etc). 🛴 🚲 🔌</p>
+              <p>Use this tool to explore dockless mobility travel patterns 🛴 🚲 🔌.</p>
 
-              <p>This map shows origins and destinations of trips with accumulated data representing frequency as 3D hexagonal tiles and absolute trip counts and percentages.</p>
+              <p>When you place a point on the map, shaded hexagons will indicate where trips from that region ended. If you switch the flow to origin, the hexagons indicate where trips to that region started.</p>
 
-              <p>Feedback and thoughts are invited to 📫 <a href="mailto:transportation.data@austintexas.gov?subject=dockless.austintexas.io">transportation.data@austintexas.gov</a> and visit the open-source project on <a href="https://github.com/cityofaustin/dockless">Github</a>.</p>
+              <p>We welcome your feedback at 📫 <a href="mailto:transportation.data@austintexas.gov?subject=dockless.austintexas.io">transportation.data@austintexas.gov</a>. Visit the open-source project on <a href="https://github.com/cityofaustin/dockless">Github</a>.</p>
               <div class="text-center mb-2">
                 <img src="/coa_seaL_lg.jpeg" alt="City of Austin Seal" class="city-seal-img">
               </div>
+              <p class="disclaimer mt-3">
+                <i>
+                  This map has been produced by the City of Austin for the sole purpose of geographic reference. No warranty is made by the City of Austin regarding specific accuracy or completeness.
+                </i>
+              </p>
             </div>
             <div class="modal-footer">
               <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>

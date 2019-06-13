@@ -19,6 +19,10 @@ import {
   initializeTutorialContinued
 } from "./modules/tutorial.js";
 import { numberWithCommas } from "./modules/numberWithCommas";
+import {
+  initializeDatepicker,
+  convertDateFieldInputToUnixTime
+} from "./modules/datepicker";
 
 // Vendor CSS
 import "mapbox-gl/dist/mapbox-gl.css";
@@ -63,6 +67,8 @@ const ATD_DocklessMap = (function() {
     isDrawControlActive: true,
     flow: "",
     mode: "",
+    startTime: null,
+    endTime: null,
     url: "",
     total_trips: "",
     first: true,
@@ -90,6 +96,7 @@ const ATD_DocklessMap = (function() {
     registerEventHandlers();
     popWelcomeModal();
     initializeTutorial(docklessMap);
+    initializeDatepicker(docklessMap);
   };
 
   const initalizeMap = () => {
@@ -144,9 +151,11 @@ const ATD_DocklessMap = (function() {
         docklessMap.url = getUrl(
           e.features,
           docklessMap.flow,
-          docklessMap.mode
+          docklessMap.mode,
+          docklessMap.startTime,
+          docklessMap.endTime
         );
-        console.log(docklessMap.url);
+        // console.log(docklessMap.url);
         getData(docklessMap.url);
         removeStats();
       });
@@ -156,7 +165,9 @@ const ATD_DocklessMap = (function() {
         docklessMap.url = getUrl(
           e.features,
           docklessMap.flow,
-          docklessMap.mode
+          docklessMap.mode,
+          docklessMap.startTime,
+          docklessMap.endTime
         );
         getData(docklessMap.url);
         removeStats();
@@ -186,31 +197,23 @@ const ATD_DocklessMap = (function() {
           feature.properties.trips
         )} (${docklessMap.formatPct(
           trip_percent
-        )}) trips started in the clicked cell.`;
+        )}) trips started in the selected cell.`;
       } else if (docklessMap.flow === "destination") {
         text = `${docklessMap.formatKs(
           feature.properties.trips
         )} (${docklessMap.formatPct(
           trip_percent
-        )}) trips ended in the clicked cell.`;
+        )}) trips ended in the selected cell.`;
       }
 
       const html = `
-        <div id="js-cell-trip-count" class="d-none d-sm-block alert alert-dark stats" role="alert">
-         ${text}
-         </div>
-      `;
-
-      const htmlMobile = `
-        <div id="js-cell-trip-count--mobile" class="d-sm-none alert alert-dark stats trip-alert--mobile" role="alert">
+        <div id="js-cell-trip-count" class="alert alert-purple col-xs-12 col-md-5 ml-sm-2 js-stats-alert" role="alert">
          ${text}
          </div>
       `;
 
       $("#js-cell-trip-count").remove();
-      $("#js-cell-trip-count--mobile").remove();
-      $("#js-data-pane").append(html);
-      $("#js-trip-stats-container--mobile").append(htmlMobile);
+      $("#js-trip-stats-container").append(html);
     }
 
     const showLayer = (layer_name, show_layer) => {
@@ -237,9 +240,11 @@ const ATD_DocklessMap = (function() {
 
     handleMapResizeOnWindowChange();
     handleResetMap();
-    handleSelectChanges();
+    handleModeFlowSelectChanges();
+    handleDateChange();
     handleWelcomeModalToggle();
     handleActiveCellHighlight();
+    handleModalClose();
   };
 
   const popWelcomeModal = () => {
@@ -249,9 +254,13 @@ const ATD_DocklessMap = (function() {
     window.Cookies.set("visited", true);
   };
 
-  const getUrl = (features, flow, mode) => {
+  const getUrl = (features, flow, mode, startTime, endTime) => {
     const coordinates = features[0].geometry.coordinates.toString();
-    const url = `${API_URL}?xy=${coordinates}&flow=${flow}&mode=${mode}`;
+    let url = `${API_URL}?xy=${coordinates}&flow=${flow}&mode=${mode}`;
+
+    if (startTime && endTime) {
+      url = `${url}&start_time=${startTime}&end_time=${endTime}`;
+    }
     return url;
   };
 
@@ -308,22 +317,52 @@ const ATD_DocklessMap = (function() {
     docklessMap.mode = $modeSelect.find("option:selected").val();
   };
 
-  const handleSelectChanges = () => {
-    const $dataSelectForm = docklessMap.$uiOverlayPane.find(
-      "#js-data-select-form"
-    );
+  function handleDateChange() {
+    $("#js-start-date-select").on("change changeDate", function(e) {
+      const date = convertDateFieldInputToUnixTime(e.target.value);
+      const previousStartTime = docklessMap.startTime;
+      docklessMap.startTime = date;
+      updateUrlAndDataForDateRange(previousStartTime, docklessMap.startTime);
+      closeSlidingPane();
+      $(this).datepicker("hide");
+    });
 
-    $dataSelectForm.change(() => {
+    $("#js-end-date-select").on("change changeDate", function(e) {
+      const date = convertDateFieldInputToUnixTime(e.target.value);
+      const previousEndTime = docklessMap.endTime;
+      docklessMap.endTime = date;
+      updateUrlAndDataForDateRange(previousEndTime, docklessMap.endTime);
+      closeSlidingPane();
+      $(this).datepicker("hide");
+    });
+  }
+
+  function updateUrlAndDataForDateRange(previousDate, newDate) {
+    // if already showing feature layer, update layer with new daterange data
+    if (docklessMap.map.getLayer("feature_layer")) {
+      let visibility = docklessMap.map.getLayoutProperty(
+        "feature_layer",
+        "visibility"
+      );
+
+      if (visibility === "visible") {
+        docklessMap.url = docklessMap.url.replace(previousDate, newDate);
+        showLoader();
+        getData(docklessMap.url);
+        removeStats();
+      }
+    }
+  }
+
+  const handleModeFlowSelectChanges = () => {
+    const $form = docklessMap.$uiOverlayPane.find("#js-mode-flow-select-form");
+
+    $form.change(() => {
       const previousFlow = docklessMap.flow;
       const previousMode = docklessMap.mode;
 
-      docklessMap.flow = $dataSelectForm
-        .find(".js-flow-select option:selected")
-        .val();
-
-      docklessMap.mode = $dataSelectForm
-        .find(".js-mode-select option:selected")
-        .val();
+      docklessMap.flow = $form.find(".js-flow-select option:selected").val();
+      docklessMap.mode = $form.find(".js-mode-select option:selected").val();
 
       closeSlidingPane();
 
@@ -357,6 +396,17 @@ const ATD_DocklessMap = (function() {
       .get(url)
       .then(response => {
         const { features, intersect_feature, total_trips } = response.data;
+
+        // If there are not enough items in the geo features Array of the response data,
+        // stop the process here before other errors occur.
+        if (features.features.length < docklessMap.numClasses) {
+          $("#errorModal").modal("show");
+          $("#errorModal .modal-body").html(`
+            <p>There is not enough data available for the area you selected. Try a bigger shape or pick another point on the map.</p>
+            <p>If the problem persists there may be an error with our server, please <a href="mailto:ATDDataTechnologyServices@austintexas.gov?subject=Bug Report: Dockless Data Explorer">email us</a> or <a href="https://github.com/cityofaustin/dockless/issues/new">create a new issue</a> on our Github repo.</p>
+          `);
+          return false;
+        }
         if (docklessMap.isDrawControlActive) {
           // When Mapbox Draw is active, touch events don't propagate so we have
           // to deactivate the controls this way.
@@ -379,6 +429,7 @@ const ATD_DocklessMap = (function() {
         }
         docklessMap.total_trips = total_trips;
         addFeatures(features, intersect_feature, total_trips);
+        updateLegend(features.features);
       })
       .catch(error => {
         $("#errorModal").modal("show");
@@ -388,7 +439,14 @@ const ATD_DocklessMap = (function() {
           <p>If the problem persists, please <a href="mailto:ATDDataTechnologyServices@austintexas.gov?subject=Bug Report: Dockless Data Explorer">email us</a> or <a href="https://github.com/cityofaustin/dockless/issues/new">create a new issue</a> on our Github repo.</p>
           <h5>Error Message:</h5><code>${error}</code>
         `);
+        throw error;
       });
+  };
+
+  const handleModalClose = () => {
+    $("#errorModal").on("hide.bs.modal", () => {
+      hideLoader();
+    });
   };
 
   const clearMapOnEscEvent = () => {
@@ -439,7 +497,6 @@ const ATD_DocklessMap = (function() {
       "fill-extrusion-color",
       getPaint(features.features)
     );
-    updateLegend(features.features);
     showLayer("feature_layer", true);
     showLayer("reference_layer", true);
     hideLoader();
@@ -450,8 +507,13 @@ const ATD_DocklessMap = (function() {
     const counts = features.map(f => f.properties.trips);
     const breaks = jenksBreaks(counts, docklessMap.numClasses);
 
+    // Reset & remove old legend HTML content
+    $("#js-legend").empty();
+
     // Add legend title
-    $("#js-legend").append("<span class='legend-title'>Number of Trips</span>");
+    $("#js-legend").append(
+      "<span class='legend-title mb-2'>Number of Trips</span>"
+    );
 
     // Loop over class breaks and add to legend keys
     for (let i = 0; i < breaks.length; i++) {
@@ -487,7 +549,7 @@ const ATD_DocklessMap = (function() {
     `);
   };
 
-  const removeStats = (selector = "stats") => {
+  const removeStats = (selector = "js-stats-alert") => {
     $("." + selector).remove();
   };
 
@@ -552,7 +614,6 @@ const ATD_DocklessMap = (function() {
         }
       });
 
-      updateLegend(features.features);
       showLayer("feature_layer", true);
       showLayer("reference_layer", true);
       showLayer("feature_layer_highlight", false);
@@ -606,29 +667,22 @@ const ATD_DocklessMap = (function() {
     if (docklessMap.flow === "origin") {
       text = `${docklessMap.formatKs(
         total_trips
-      )} trips terminated in the selected area.`;
+      )} trips terminated in the outlined area.`;
     } else if (docklessMap.flow === "destination") {
       text = `${docklessMap.formatKs(
         total_trips
-      )}  trips originated in the selected area.`;
+      )}  trips originated in the outlined area.`;
     }
 
     const html = `
-      <div id="js-trip-alert" class="d-none d-sm-block alert alert-primary stats" role="alert">
-        ${text}
-      </div>`;
-
-    const htmlMobile = `
-      <div id="js-trip-alert--mobile" class="d-sm-none alert alert-primary stats trip-alert--mobile" role="alert">
+      <div id="js-trip-alert" class="alert alert-primary alert-dashed-border col-xs-12 col-md-5 mr-sm-2 js-stats-alert" role="alert">
         ${text}
       </div>
     `;
 
     $("#js-trip-alert").remove();
-    $("#js-trip-alert--mobile").remove();
     $("#js-cell-trip-count").remove();
-    $(`#${divId}`).append(html);
-    $("#js-trip-stats-container--mobile").append(htmlMobile);
+    $("#js-trip-stats-container").append(html);
   };
 
   const openSlidingPane = () => {
